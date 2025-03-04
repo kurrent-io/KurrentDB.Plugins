@@ -12,6 +12,7 @@ public class ChunkDataReadStream(Stream chunkFileStream) : Stream {
 	public sealed override bool CanSeek => true;
 	public sealed override bool CanWrite => false;
 	public sealed override void Write(byte[] buffer, int offset, int count) => throw new InvalidOperationException();
+	public override void Write(ReadOnlySpan<byte> buffer) => throw new InvalidOperationException();
 	public sealed override void WriteByte(byte value) => throw new InvalidOperationException();
 
 	public sealed override void Flush() => throw new InvalidOperationException();
