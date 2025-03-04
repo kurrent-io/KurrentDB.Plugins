@@ -1,8 +1,7 @@
 // Copyright (c) Event Store Ltd and/or licensed to Event Store Ltd under one or more agreements.
 // Event Store Ltd licenses this file to you under the Event Store License v2 (see LICENSE.md).
 
-using System;
-using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace EventStore.Plugins.Transforms;
 
@@ -13,12 +12,26 @@ public class ChunkDataReadStream(Stream chunkFileStream) : Stream {
 	public sealed override bool CanSeek => true;
 	public sealed override bool CanWrite => false;
 	public sealed override void Write(byte[] buffer, int offset, int count) => throw new InvalidOperationException();
+	public override void Write(ReadOnlySpan<byte> buffer) => throw new InvalidOperationException();
+	public sealed override void WriteByte(byte value) => throw new InvalidOperationException();
+
 	public sealed override void Flush() => throw new InvalidOperationException();
 	public sealed override void SetLength(long value) => throw new InvalidOperationException();
 	public override long Length => throw new NotSupportedException();
 
-	// reads must always return exactly `count` bytes as we never read past the (flushed) writer checkpoint
-	public override int Read(byte[] buffer, int offset, int count) => ChunkFileStream.Read(buffer, offset, count);
+	public sealed override int Read(byte[] buffer, int offset, int count) {
+		ValidateBufferArguments(buffer, offset, count);
+
+		return Read(buffer.AsSpan(offset, count));
+	}
+
+	// reads must always return exactly `Span<byte>.Length` bytes as we never read past the (flushed) writer checkpoint
+	public override int Read(Span<byte> buffer) => ChunkFileStream.Read(buffer);
+
+	public sealed override int ReadByte() {
+		Unsafe.SkipInit(out byte value);
+		return Read(new(ref value)) is 1 ? value : -1;
+	}
 
 	// seeks need to support only `SeekOrigin.Begin`
 	public override long Seek(long offset, SeekOrigin origin) {
